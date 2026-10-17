@@ -8,7 +8,8 @@ const gameArea = document.getElementById('game-area');
 const targetBtn = document.getElementById('target-btn');
 
 const GAME_TIME = 30;
-const MOVE_INTERVAL = 550;
+const BASE_MOVE_INTERVAL = 620;
+const MIN_MOVE_INTERVAL = 180;
 const BEST_SCORE_KEY = 'hit-the-button-best-score';
 
 let score = 0;
@@ -16,6 +17,7 @@ let timeLeft = GAME_TIME;
 let timerId = null;
 let moveId = null;
 let isPlaying = false;
+let moveSpeed = BASE_MOVE_INTERVAL;
 
 function updateScore() {
   scoreEl.textContent = String(score);
@@ -44,16 +46,29 @@ function moveTarget() {
 
   const areaRect = gameArea.getBoundingClientRect();
   const buttonRect = targetBtn.getBoundingClientRect();
-  const padding = 10;
-  const maxX = areaRect.width - buttonRect.width - padding;
-  const maxY = areaRect.height - buttonRect.height - padding;
+  const padding = 14;
+  const maxX = Math.max(padding, areaRect.width - buttonRect.width - padding);
+  const maxY = Math.max(padding, areaRect.height - buttonRect.height - padding);
 
-  const nextX = randomBetween(padding, Math.max(padding, maxX));
-  const nextY = randomBetween(padding, Math.max(padding, maxY));
+  const nextX = randomBetween(padding, maxX);
+  const nextY = randomBetween(padding, maxY);
 
   targetBtn.style.left = `${nextX}px`;
   targetBtn.style.top = `${nextY}px`;
   targetBtn.style.transform = 'translate(0, 0)';
+}
+
+function updateDifficulty() {
+  const nextSpeed = Math.max(
+    MIN_MOVE_INTERVAL,
+    BASE_MOVE_INTERVAL - score * 11 - (GAME_TIME - timeLeft) * 10
+  );
+
+  if (nextSpeed !== moveSpeed) {
+    moveSpeed = nextSpeed;
+    clearInterval(moveId);
+    moveId = setInterval(moveTarget, moveSpeed);
+  }
 }
 
 function finishGame() {
@@ -78,6 +93,7 @@ function finishGame() {
 function startGame() {
   score = 0;
   timeLeft = GAME_TIME;
+  moveSpeed = BASE_MOVE_INTERVAL;
   updateScore();
   updateTimer();
   setStatus('Catch the button as fast as you can!', true);
@@ -87,11 +103,13 @@ function startGame() {
   startBtn.disabled = true;
 
   moveTarget();
-  moveId = setInterval(moveTarget, MOVE_INTERVAL);
+  clearInterval(moveId);
+  moveId = setInterval(moveTarget, moveSpeed);
 
   timerId = setInterval(() => {
     timeLeft -= 1;
     updateTimer();
+    updateDifficulty();
 
     if (timeLeft <= 0) {
       finishGame();
@@ -121,6 +139,7 @@ targetBtn.addEventListener('click', () => {
 
   score += 10;
   updateScore();
+  updateDifficulty();
   moveTarget();
   setStatus('Nice hit!', true);
 });
